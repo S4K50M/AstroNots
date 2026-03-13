@@ -1,0 +1,61 @@
+.panel { display: flex; flex-direction: column; gap: 12px; }
+.sectionLabel {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.loading { font-family: var(--mono); font-size: 12px; color: var(--text-dim); }
+.scoreRow { display: flex; align-items: center; gap: 16px; }
+.ringWrap { position: relative; width: 80px; height: 80px; flex-shrink: 0; }
+.ringCenter {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  font-family: var(--mono);
+}
+.ringNum   { font-size: 20px; font-weight: 700; line-height: 1; }
+.ringDenom { font-size: 9px; color: var(--text-dim); }
+.bars { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.barRow    { display: flex; align-items: center; gap: 8px; }
+.barLabel  { font-family: var(--mono); font-size: 10px; color: var(--text-muted); width: 58px; }
+.barTrack  { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+.barFill   { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+.barVal    { font-family: var(--mono); font-size: 10px; color: var(--text-muted); width: 22px; text-align: right; }
+.rec {
+  font-size: 12px;
+  color: var(--text-muted);
+  background: var(--bg3);
+  border-radius: 8px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  font-style: italic;
+}
+.darkDetail {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.darkDetail span {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-dim);
+  background: var(--bg3);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+.photoWrap { display: flex; flex-direction: column; gap: 8px; }
+.photoGrid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+.photoCard {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: center;
+}
+.photoKey { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 4px; }
+.photoVal { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--aurora); }
+.photoNote { font-family: var(--mono); font-size: 10px; color: var(--text-dim); line-height: 1.5; }
