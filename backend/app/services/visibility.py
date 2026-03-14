@@ -180,11 +180,11 @@ def _aurora_score_for_location(lat: float, lon: float) -> float:
     # Normalise lon to 0-359
     norm_lon = lon % 360
 
-    # Find 4 nearest cells
+    # Find 16 nearest cells for better interpolation
     candidates = sorted(
         ovation.cells,
         key=lambda c: (c.lat - lat)**2 + (_lon_dist(c.lon, norm_lon))**2
-    )[:4]
+    )[:16]
 
     if not candidates:
         return 0.0
@@ -268,9 +268,19 @@ async def compute_visibility_score(lat: float, lon: float) -> dict:
     lunar_score  = _lunar_score(lat, lon, now)
     twilight_score = _twilight_score(lat, lon, now)
 
+    # Boost score based on Kp — high Kp means aurora may be visible
+    # even if OVATION local probability is low
+    kp_val = None
+    if store.state.kp and store.state.kp.latest:
+        kp_val = store.state.kp.latest.kp
+    kp_boost = min(30.0, (kp_val / 9.0) * 30.0) if kp_val else 0.0
+
+    # Use max of OVATION probability and Kp-derived estimate
+    effective_aurora = max(aurora_prob, kp_boost)
+
     composite = (
-        W_AURORA   * aurora_prob  +
-        W_DARKNESS * darkness     +
+        W_AURORA   * effective_aurora +
+        W_DARKNESS * darkness         +
         W_CLOUD    * cloud_score
     )
 

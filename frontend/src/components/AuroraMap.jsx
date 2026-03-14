@@ -45,7 +45,7 @@ function OvationLayer({ cells }) {
 
           const point = map.latLngToContainerPoint([lat, lon > 180 ? lon - 360 : lon])
           const zoom  = map.getZoom()
-          const r     = Math.max(2, zoom * 1.2)
+          const r     = Math.max(4, zoom * 3)
 
           let r_, g_, b_
           const p = aurora / 100
