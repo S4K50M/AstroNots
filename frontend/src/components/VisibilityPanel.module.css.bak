@@ -59,20 +59,3 @@
 .photoKey { font-family: var(--mono); font-size: 9px; color: var(--text-dim); letter-spacing: 0.08em; margin-bottom: 4px; }
 .photoVal { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--aurora); }
 .photoNote { font-family: var(--mono); font-size: 10px; color: var(--text-dim); line-height: 1.5; }
-
-/* Mobile */
-@media (max-width: 480px) {
-  .photoGrid { grid-template-columns: repeat(3, 1fr); gap: 5px; }
-  .photoCard { padding: 8px 6px; }
-  .photoVal  { font-size: 13px; }
-  .barLabel  { width: 50px; font-size: 9px; }
-  .ringWrap  { width: 70px; height: 70px; }
-  .scoreRow  { gap: 12px; }
-}
-
-@media (max-width: 380px) {
-  .photoGrid { grid-template-columns: repeat(3, 1fr); gap: 4px; }
-  .photoCard { padding: 6px 4px; }
-  .photoVal  { font-size: 12px; }
-  .photoKey  { font-size: 8px; }
-}

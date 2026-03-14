@@ -22,3 +22,10 @@
   border: 1px solid; border-radius: 4px;
   padding: 2px 6px; opacity: 0.7;
 }
+
+/* Mobile overflow fix */
+.wrap { overflow: hidden; }
+.storms { flex-wrap: wrap; gap: 4px; }
+@media (max-width: 480px) {
+  .stormTag { font-size: 8px; padding: 2px 5px; }
+}

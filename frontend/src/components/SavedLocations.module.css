@@ -46,3 +46,12 @@
 .del:hover { color: var(--red); }
 .locMeta { display: flex; gap: 12px; flex-wrap: wrap; }
 .locMeta span { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
+
+/* Mobile overflow fix */
+@media (max-width: 480px) {
+  .threshRow { flex-wrap: wrap; gap: 6px; }
+  .threshLabel { font-size: 9px; }
+  .slider { min-width: 0; width: 100%; }
+  .input { font-size: 16px; } /* prevent iOS zoom */
+  .btn { font-size: 10px; padding: 8px 10px; }
+}

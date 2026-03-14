@@ -27,9 +27,3 @@
   display: flex; justify-content: space-between;
   font-family: var(--mono); font-size: 9px; color: var(--text-dim);
 }
-
-/* Mobile */
-@media (max-width: 480px) {
-  .kpBig { font-size: 30px; }
-  .value { font-size: 17px; }
-}

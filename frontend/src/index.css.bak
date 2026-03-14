@@ -62,19 +62,3 @@ html, body, #root {
   from { opacity:0; transform: translateY(-6px); }
   to   { opacity:1; transform: none; }
 }
-
-/* ===== MOBILE GLOBALS ===== */
-/* Prevent iOS font zoom on input focus */
-input, select, textarea {
-  font-size: 16px !important;
-}
-/* Minimum touch target size */
-button, [role="button"] {
-  min-height: 44px;
-  min-width: 44px;
-}
-/* Use dynamic viewport height — accounts for mobile browser chrome */
-html, body, #root {
-  height: 100%;
-  min-height: 100dvh;
-}
