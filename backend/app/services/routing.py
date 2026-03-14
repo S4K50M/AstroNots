@@ -29,10 +29,24 @@ from app.services.visibility import (
 )
 
 
-# Criteria thresholds for a "qualifying" dark-sky site
-MIN_AURORA_PROB  = 50.0   # %
-MAX_CLOUD_COVER  = 30.0   # %
-MAX_BORTLE       = 4      # Bortle class
+# Criteria thresholds — dynamically adjusted based on Kp
+from app.services.noaa_poller import store as _store
+
+def _get_thresholds():
+    kp = None
+    if _store.state.kp and _store.state.kp.latest:
+        kp = _store.state.kp.latest.kp
+    # Lower aurora threshold when Kp is high (storm extends oval southward)
+    if kp and kp >= 5:
+        return 20.0, 50.0, 5   # aurora%, cloud%, bortle
+    elif kp and kp >= 3:
+        return 30.0, 40.0, 4
+    else:
+        return 50.0, 30.0, 4
+
+MIN_AURORA_PROB  = 20.0   # % (dynamic)
+MAX_CLOUD_COVER  = 50.0   # % (dynamic)
+MAX_BORTLE       = 5      # (dynamic)
 
 
 def _destination(lat: float, lon: float, bearing_deg: float, distance_km: float) -> tuple[float, float]:
@@ -57,24 +71,59 @@ def _destination(lat: float, lon: float, bearing_deg: float, distance_km: float)
 def _generate_candidates(lat: float, lon: float) -> list[tuple[float, float, float]]:
     """
     Generate candidate locations in concentric rings.
+    Also adds northward-biased candidates since aurora oval is poleward.
     Returns list of (lat, lon, distance_km).
     """
     candidates = []
-    # 8 directions × 5 distances = 40 candidates
-    bearings   = [0, 45, 90, 135, 180, 225, 270, 315]
-    distances  = [20, 40, 70, 110, 160]
+    # Standard 8 directions
+    bearings  = [0, 45, 90, 135, 180, 225, 270, 315]
+    distances = [20, 40, 70, 110, 160]
 
     for dist in distances:
         for bearing in bearings:
             clat, clon = _destination(lat, lon, bearing, dist)
             candidates.append((clat, clon, dist))
 
+    # Extra northward candidates — aurora oval is always poleward
+    for dist in [30, 60, 100, 150, 200, 250]:
+        clat, clon = _destination(lat, lon, 0, dist)
+        candidates.append((clat, clon, dist))
+
     return candidates
+
+
+def _aurora_score_direct(lat: float, lon: float) -> float:
+    """
+    Direct OVATION lookup with wider search radius.
+    Falls back to Kp-based estimate if OVATION returns 0.
+    """
+    from app.services.noaa_poller import store
+    score = _aurora_score_for_location(lat, lon)
+
+    # If OVATION returns near-zero, estimate from Kp + latitude
+    if score < 5:
+        kp = None
+        if store.state.kp and store.state.kp.latest:
+            kp = store.state.kp.latest.kp
+        if kp:
+            # Auroral oval visibility latitude: roughly 67 - (kp * 2) degrees
+            oval_lat = 67 - (kp * 2)
+            dist_from_oval = abs(lat - oval_lat)
+            if dist_from_oval < 3:
+                score = 80.0
+            elif dist_from_oval < 6:
+                score = 60.0
+            elif dist_from_oval < 10:
+                score = 40.0
+            elif dist_from_oval < 15:
+                score = 20.0
+
+    return score
 
 
 async def _score_candidate(lat: float, lon: float) -> dict:
     """Quick-score a candidate location."""
-    aurora_prob = _aurora_score_for_location(lat, lon)
+    aurora_prob = _aurora_score_direct(lat, lon)
     bortle = _estimate_bortle(lat, lon)
 
     # Only fetch cloud cover if the other criteria look promising
@@ -161,6 +210,14 @@ async def find_dark_sky_route(lat: float, lon: float) -> dict:
     for i, (clat, clon, dist) in enumerate(candidates):
         results[i]["distance_km"] = dist
 
+    MIN_AURORA_PROB, MAX_CLOUD_COVER, MAX_BORTLE = _get_thresholds()
+    # Re-evaluate with dynamic thresholds
+    for r in results:
+        r["qualifies"] = (
+            r["aurora_prob"] >= MIN_AURORA_PROB and
+            r.get("cloud_cover", 999) <= MAX_CLOUD_COVER and
+            r["bortle"] < MAX_BORTLE
+        )
     qualifying = [r for r in results if r["qualifies"]]
 
     if qualifying:

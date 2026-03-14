@@ -5,7 +5,8 @@ import AuroraMap      from '../components/AuroraMap'
 import SolarCharts    from '../components/SolarCharts'
 import MetricsPanel   from '../components/MetricsPanel'
 import VisibilityPanel from '../components/VisibilityPanel'
-import RoutingPanel   from '../components/RoutingPanel'
+import RoutingPanel     from '../components/RoutingPanel'
+import SavedLocations   from '../components/SavedLocations'
 import { useSpaceWeather } from '../hooks/useSpaceWeather'
 import { useWebSocket }    from '../hooks/useWebSocket'
 import styles from './Dashboard.module.css'
@@ -138,7 +139,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-
+          <SavedLocations currentLat={lat} currentLon={lon} />
         </div>
       </div>
     </div>

@@ -1,0 +1,48 @@
+.wrap { display: flex; flex-direction: column; gap: 10px; }
+.sectionLabel {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--text-dim);
+  padding-bottom: 10px; border-bottom: 1px solid var(--border);
+}
+.addRow { display: flex; flex-direction: column; gap: 8px; }
+.input {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--text);
+  outline: none; transition: border-color 0.2s;
+}
+.input:focus { border-color: var(--border-bright); }
+.input::placeholder { color: var(--text-dim); }
+.threshRow { display: flex; align-items: center; gap: 8px; }
+.threshLabel { font-family: var(--mono); font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+.slider { flex: 1; }
+.threshVal { font-family: var(--mono); font-size: 12px; color: var(--aurora); min-width: 24px; }
+.btn {
+  background: var(--aurora-glow); border: 1px solid var(--border-bright);
+  border-radius: 8px; padding: 9px 14px;
+  font-family: var(--mono); font-size: 11px; color: var(--aurora);
+  cursor: pointer; letter-spacing: 0.06em; transition: background 0.2s;
+}
+.btn:hover:not(:disabled) { background: rgba(0,255,163,0.18); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.empty { font-family: var(--mono); font-size: 11px; color: var(--text-dim); }
+.locCard {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px;
+  transition: border-color 0.3s;
+}
+.locCard.alertFiring { border-color: var(--aurora); background: var(--aurora-glow); }
+.locTop { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.locName { font-family: var(--mono); font-size: 12px; color: var(--text); flex: 1; font-weight: 700; }
+.alertBadge {
+  font-family: var(--mono); font-size: 10px; color: var(--aurora);
+  background: rgba(0,255,163,0.1); border: 1px solid var(--border-bright);
+  padding: 2px 8px; border-radius: 4px; animation: fadeIn 0.3s;
+}
+.del {
+  background: none; border: none; color: var(--text-dim);
+  cursor: pointer; font-size: 12px; padding: 2px 4px;
+}
+.del:hover { color: var(--red); }
+.locMeta { display: flex; gap: 12px; flex-wrap: wrap; }
+.locMeta span { font-family: var(--mono); font-size: 10px; color: var(--text-muted); }
