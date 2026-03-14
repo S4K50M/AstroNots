@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { MapContainer, TileLayer, useMap } from 'react-leaflet'
+import SightingsLayer from './SightingsLayer'
 import L from 'leaflet'
 import styles from './AuroraMap.module.css'
 
@@ -165,6 +166,7 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
         />
         <OvationLayer cells={cells} />
         <TerminatorLayer />
+        <SightingsLayer />
         {userLat && userLon && (
           <LocationMarker lat={userLat} lon={userLon} score={score} />
         )}

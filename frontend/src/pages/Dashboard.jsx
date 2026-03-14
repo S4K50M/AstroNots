@@ -7,6 +7,8 @@ import MetricsPanel   from '../components/MetricsPanel'
 import VisibilityPanel from '../components/VisibilityPanel'
 import RoutingPanel     from '../components/RoutingPanel'
 import SavedLocations   from '../components/SavedLocations'
+import AlertsTab        from '../components/AlertsTab'
+import ForecastChart    from '../components/ForecastChart'
 import { useSpaceWeather } from '../hooks/useSpaceWeather'
 import { useWebSocket }    from '../hooks/useWebSocket'
 import styles from './Dashboard.module.css'
@@ -111,34 +113,10 @@ export default function Dashboard() {
               <RoutingPanel lat={lat} lon={lon} />
             )}
             {activeTab === 'alerts' && (
-              <div className={styles.alertsList}>
-                <div className={styles.sectionLabel}>Active NOAA Alerts</div>
-                {alerts?.alerts?.length > 0 ? alerts.alerts.map((a, i) => (
-                  <div key={i} className={styles.alertItem}>
-                    <div className={styles.alertSev}>{a.severity ?? 'WATCH'}</div>
-                    <div className={styles.alertMsg}>{a.message?.slice(0, 200) ?? 'Geomagnetic disturbance in progress'}</div>
-                  </div>
-                )) : (
-                  <div className={styles.noAlerts}>No active alerts</div>
-                )}
-                {wsAlerts.length > 0 && (
-                  <>
-                    <div className={styles.sectionLabel} style={{marginTop:12}}>Real-time Events</div>
-                    {wsAlerts.map((a, i) => (
-                      <div key={i} className={`${styles.alertItem} ${styles.wsAlert}`}>
-                        <div className={styles.alertSev} style={{color:'var(--teal)'}}>{a.event?.type ?? a.type}</div>
-                        <div className={styles.alertMsg}>
-                          {a.event?.bz_gsm != null && `Bz ${a.event.bz_gsm.toFixed(1)} nT`}
-                          {a.event?.speed_km_s != null && `Speed ${Math.round(a.event.speed_km_s)} km/s`}
-                          {a.event?.warning}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
+              <AlertsTab alerts={alerts} wsAlerts={wsAlerts} />
             )}
           </div>
+          <ForecastChart />
           <SavedLocations currentLat={lat} currentLon={lon} />
         </div>
       </div>

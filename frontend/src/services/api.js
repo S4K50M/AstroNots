@@ -8,6 +8,7 @@ export const getPlasma   = ()              => api.get('/space-weather/plasma').t
 export const getOvation  = ()              => api.get('/space-weather/ovation').then(r => r.data)
 export const getKp       = ()              => api.get('/space-weather/kp').then(r => r.data)
 export const getAlerts   = ()              => api.get('/space-weather/noaa-alerts').then(r => r.data)
+export const getForecast    = ()            => api.get('/forecast').then(r => r.data)
 export const getVisibility = (lat, lon)    => api.get('/visibility', { params: { lat, lon } }).then(r => r.data)
 export const getRouting    = (lat, lon)    => api.get('/routing', { params: { lat, lon } }).then(r => r.data)
 export const saveLocation  = (body)        => api.post('/locations', body).then(r => r.data)

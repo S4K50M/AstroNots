@@ -123,6 +123,29 @@ async def get_noaa_alerts():
 
 # ── Visibility score ──────────────────────────────────────────────────────────
 
+@router.get("/api/forecast")
+async def get_forecast():
+    """3-day Kp forecast from NOAA."""
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get("https://services.swpc.noaa.gov/products/noaa-planetary-k-index-forecast.json")
+            raw = r.json()
+        header = raw[0]
+        rows = []
+        for item in raw[1:]:
+            d = dict(zip(header, item))
+            rows.append({
+                "time_tag": d.get("time_tag"),
+                "kp": float(d["kp"]) if d.get("kp") else None,
+                "observed": d.get("observed") == "observed",
+                "noaa_scale": d.get("noaa_scale"),
+            })
+        return {"forecast": rows, "count": len(rows)}
+    except Exception as e:
+        return {"forecast": [], "count": 0, "error": str(e)}
+
+
 @router.get("/api/visibility")
 async def get_visibility(
     lat: float = Query(..., ge=-90, le=90),
