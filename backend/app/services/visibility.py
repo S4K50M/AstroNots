@@ -73,6 +73,41 @@ _MAJOR_CITIES: list[tuple[float, float, int]] = [
     (69.65, 18.96, 2),  # Tromsø
 ]
 
+from datetime import datetime, timezone, timedelta
+import asyncio
+
+# ── Cache for weather API calls ────────────────────────────────────────────
+_weather_cache: dict[str, tuple[float, datetime]] = {}
+_cache_lock = asyncio.Lock()
+
+async def _fetch_cloud_cover_cached(lat: float, lon: float) -> float:
+    """
+    Cached version of _fetch_cloud_cover.
+    Cache expires after 10 minutes.
+    """
+    cache_key = f"{round(lat, 2)}_{round(lon, 2)}"
+    
+    async with _cache_lock:
+        if cache_key in _weather_cache:
+            cached_value, cached_time = _weather_cache[cache_key]
+            age = datetime.now(timezone.utc) - cached_time
+            if age < timedelta(minutes=10):
+                from app.core.logging import logger
+                logger.debug(f"weather_cache_hit: {cache_key}")
+                return cached_value
+    
+    # Cache miss - fetch fresh data
+    cloud_cover = await _fetch_cloud_cover(lat, lon)
+    
+    async with _cache_lock:
+        _weather_cache[cache_key] = (cloud_cover, datetime.now(timezone.utc))
+        
+        # Cleanup old entries (keep cache size manageable)
+        if len(_weather_cache) > 1000:
+            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
+            _weather_cache.clear()  # Simple strategy: clear all on overflow
+    
+    return cloud_cover
 
 def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     R = 6371.0
@@ -272,10 +307,16 @@ async def compute_visibility_score(lat: float, lon: float) -> dict:
     """
     Main entry point. Returns a full breakdown dict with composite score.
     """
+    # Validate inputs
+    if not (-90 <= lat <= 90):
+        raise ValueError(f"Invalid latitude: {lat}. Must be between -90 and 90")
+    if not (-180 <= lon <= 180):
+        raise ValueError(f"Invalid longitude: {lon}. Must be between -180 and 180")
+    
     now = datetime.now(timezone.utc)
 
     # Run cloud fetch concurrently with local calculations
-    cloud_coro = _fetch_cloud_cover(lat, lon)
+    cloud_coro = _fetch_cloud_cover_cached(lat, lon)
     cloud_cover_pct, aurora_prob = await asyncio.gather(
         cloud_coro,
         asyncio.to_thread(_aurora_score_for_location, lat, lon),

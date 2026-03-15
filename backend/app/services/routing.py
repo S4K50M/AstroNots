@@ -252,7 +252,13 @@ def _build_route(origin_lat: float, origin_lon: float, dest_lat: float, dest_lon
     }
 
 
-async def find_dark_sky_route(lat: float, lon: float) -> dict:
+async def find_dark_sky_route(
+    lat: float, 
+    lon: float,
+    min_aurora_threshold: Optional[float] = None,
+    max_cloud_threshold: Optional[float] = None,
+    max_bortle_threshold: Optional[int] = None
+) -> dict:
     """
     Main entry point for GPS routing stretch goal.
 
@@ -260,6 +266,29 @@ async def find_dark_sky_route(lat: float, lon: float) -> dict:
       { "found": True,  "site": {...}, "route": {...} }
       { "found": False, "reason": "...", "best_candidate": {...} }
     """
+    # Validate inputs
+    if not (-90 <= lat <= 90):
+        return {
+            "found": False,
+            "reason": f"Invalid latitude: {lat}",
+            "error": "INVALID_INPUT"
+        }
+    if not (-180 <= lon <= 180):
+        return {
+            "found": False,
+            "reason": f"Invalid longitude: {lon}",
+            "error": "INVALID_INPUT"
+        }
+    
+    # Check if we have OVATION data
+    from app.services.noaa_poller import store as _store
+    if not _store.state.ovation or not _store.state.ovation.cells:
+        return {
+            "found": False,
+            "reason": "OVATION aurora data not yet available. Try again in 30 seconds.",
+            "error": "DATA_NOT_READY"
+        }
+    
     candidates = _generate_candidates(lat, lon)
 
     # Score all candidates concurrently (with semaphore to avoid hammering APIs)
@@ -277,7 +306,17 @@ async def find_dark_sky_route(lat: float, lon: float) -> dict:
     for i, (clat, clon, dist) in enumerate(candidates):
         results[i]["distance_km"] = dist
 
-    MIN_AURORA_PROB, MAX_CLOUD_COVER, MAX_BORTLE = _get_thresholds()
+    # Use user-provided thresholds or fall back to smart defaults
+    if min_aurora_threshold is None or max_cloud_threshold is None or max_bortle_threshold is None:
+    # Get smart defaults based on current Kp
+        default_aurora, default_cloud, default_bortle = _get_thresholds()
+        MIN_AURORA_PROB = min_aurora_threshold if min_aurora_threshold is not None else default_aurora
+        MAX_CLOUD_COVER = max_cloud_threshold if max_cloud_threshold is not None else default_cloud
+        MAX_BORTLE = max_bortle_threshold if max_bortle_threshold is not None else default_bortle
+    else:
+        MIN_AURORA_PROB = min_aurora_threshold
+        MAX_CLOUD_COVER = max_cloud_threshold
+        MAX_BORTLE = max_bortle_threshold
     # Re-evaluate with dynamic thresholds
     for r in results:
         r["qualifies"] = (

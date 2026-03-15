@@ -31,6 +31,10 @@ from app.services.visibility import compute_visibility_score
 from app.services.routing import find_dark_sky_route
 from app.services.alerts import ws_manager, save_location, get_location, list_locations, delete_location
 
+import asyncio
+from datetime import datetime, timezone
+from typing import Optional
+
 router = APIRouter()
 
 
@@ -160,11 +164,32 @@ async def get_visibility(
 
 @router.get("/api/routing")
 async def get_routing(
-    lat: float = Query(..., ge=-90, le=90),
-    lon: float = Query(..., ge=-180, le=180),
+    lat: float = Query(..., ge=-90, le=90, description="Your latitude"),
+    lon: float = Query(..., ge=-180, le=180, description="Your longitude"),
+    min_aurora: Optional[float] = Query(None, ge=0, le=100, description="Minimum aurora probability (0-100). Default: auto based on Kp"),
+    max_clouds: Optional[float] = Query(None, ge=0, le=100, description="Maximum cloud cover (0-100%). Default: 50%"),
+    max_bortle: Optional[int] = Query(None, ge=1, le=9, description="Maximum Bortle class (1-9). Default: 5"),
 ):
-    """Find GPS route to nearest dark-sky aurora viewing site."""
-    result = await find_dark_sky_route(lat, lon)
+    """
+    Find GPS route to nearest dark-sky aurora viewing site.
+    
+    Criteria thresholds can be customized:
+    - min_aurora: Lower this if you're willing to chase fainter aurora (default: auto based on Kp)
+    - max_clouds: Raise this if you're okay with some clouds (default: 50%)
+    - max_bortle: Raise this if light pollution is acceptable (default: 5)
+    
+    Examples:
+    - Strict: min_aurora=70&max_clouds=20&max_bortle=3
+    - Relaxed: min_aurora=30&max_clouds=70&max_bortle=6
+    - Auto: Don't specify parameters (uses smart defaults)
+    """
+    result = await find_dark_sky_route(
+        lat, 
+        lon,
+        min_aurora_threshold=min_aurora,
+        max_cloud_threshold=max_clouds,
+        max_bortle_threshold=max_bortle
+    )
     return result
 
 
@@ -194,6 +219,63 @@ async def remove_location(location_id: str):
     if not delete_location(location_id):
         raise HTTPException(404, "Location not found")
     return {"deleted": location_id}
+
+
+@router.get("/api/health")
+async def health_check():
+    """
+    Comprehensive health check endpoint.
+    Returns service status and data freshness.
+    """
+    state = store.state
+    now = datetime.now(timezone.utc)
+    
+    def time_since(dt):
+        if not dt:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = now - dt
+        return delta.total_seconds()
+    
+    mag_latest_age = time_since(state.mag.latest.timestamp) if state.mag and state.mag.latest else None
+    plasma_latest_age = time_since(state.plasma.latest.timestamp) if state.plasma and state.plasma.latest else None
+    
+    return {
+        "status": "healthy" if not state.mag.data_gap else "degraded",
+        "timestamp": now.isoformat(),
+        "uptime_seconds": (now - state.last_updated).total_seconds() if state.last_updated else 0,
+        "data_sources": {
+            "mag": {
+                "available": state.mag is not None,
+                "data_gap": state.mag.data_gap if state.mag else True,
+                "source": state.mag.source if state.mag else None,
+                "latest_reading_age_seconds": mag_latest_age,
+                "readings_count": len(state.mag.readings) if state.mag else 0,
+            },
+            "plasma": {
+                "available": state.plasma is not None,
+                "data_gap": state.plasma.data_gap if state.plasma else True,
+                "latest_reading_age_seconds": plasma_latest_age,
+                "readings_count": len(state.plasma.readings) if state.plasma else 0,
+            },
+            "ovation": {
+                "available": state.ovation is not None,
+                "data_gap": state.ovation.data_gap if state.ovation else True,
+                "cell_count": len(state.ovation.cells) if state.ovation else 0,
+            },
+            "kp": {
+                "available": state.kp is not None,
+                "current_value": state.kp.latest.kp if state.kp and state.kp.latest else None,
+            },
+        },
+        "alerts": {
+            "bz_active": state.bz_alert_active,
+            "speed_active": state.speed_alert_active,
+            "any_active": state.any_alert_active,
+        },
+        "websocket_clients": ws_manager.connection_count,
+    }
 
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
@@ -249,3 +331,124 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
         from app.core.logging import logger
         logger.warning("ws_error", client_id=client_id, error=str(exc))
         await ws_manager.disconnect(client_id)
+
+
+from typing import List
+
+class LocationBatch(BaseModel):
+    locations: List[dict] = Field(..., max_items=50)  # Limit to 50 locations
+
+
+@router.post("/api/visibility/batch")
+async def get_visibility_batch(body: LocationBatch):
+    """
+    Compute visibility scores for multiple locations in one request.
+    Useful for map overlays or comparing multiple sites.
+    
+    Example request:
+    {
+      "locations": [
+        {"lat": 65.0, "lon": -18.0, "name": "Reykjavik"},
+        {"lat": 69.6, "lon": 18.9, "name": "Tromsø"}
+      ]
+    }
+    """
+    results = []
+    
+    # Process in parallel with semaphore to limit concurrency
+    sem = asyncio.Semaphore(10)
+    
+    async def score_location(loc):
+        async with sem:
+            try:
+                result = await compute_visibility_score(loc["lat"], loc["lon"])
+                result["name"] = loc.get("name", f"{loc['lat']}, {loc['lon']}")
+                return result
+            except Exception as e:
+                return {
+                    "lat": loc["lat"],
+                    "lon": loc["lon"],
+                    "name": loc.get("name"),
+                    "error": str(e),
+                    "composite_score": 0
+                }
+    
+    results = await asyncio.gather(*[score_location(loc) for loc in body.locations])
+    
+    return {
+        "count": len(results),
+        "results": results,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }        
+
+@router.get("/api/stats")
+async def get_statistics():
+    """
+    Return statistical analysis of recent space weather data.
+    Useful for showing trends and anomalies.
+    """
+    state = store.state
+    
+    if not state.mag or not state.mag.readings:
+        raise HTTPException(503, "Not enough data for statistics")
+    
+    # Calculate Bz statistics over last 2 hours
+    recent_mag = [r for r in state.mag.readings if r.bz_gsm is not None][-120:]
+    bz_values = [r.bz_gsm for r in recent_mag]
+    
+    # Calculate speed statistics
+    recent_plasma = []
+    if state.plasma and state.plasma.readings:
+        recent_plasma = [r for r in state.plasma.readings if r.speed is not None][-120:]
+    speed_values = [r.speed for r in recent_plasma]
+    
+    import statistics
+    
+    return {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "bz_stats": {
+            "current": bz_values[-1] if bz_values else None,
+            "mean_2h": round(statistics.mean(bz_values), 2) if bz_values else None,
+            "min_2h": round(min(bz_values), 2) if bz_values else None,
+            "max_2h": round(max(bz_values), 2) if bz_values else None,
+            "stdev_2h": round(statistics.stdev(bz_values), 2) if len(bz_values) > 1 else None,
+            "alert_threshold": state.mag.latest.bz_alert_threshold if state.mag.latest else -7.0,
+            "below_threshold_count": sum(1 for v in bz_values if v < -7.0),
+        },
+        "speed_stats": {
+            "current": speed_values[-1] if speed_values else None,
+            "mean_2h": round(statistics.mean(speed_values), 1) if speed_values else None,
+            "max_2h": round(max(speed_values), 1) if speed_values else None,
+        },
+        "kp": {
+            "current": state.kp.latest.kp if state.kp and state.kp.latest else None,
+        },
+        "data_quality": {
+            "mag_readings": len(recent_mag),
+            "plasma_readings": len(recent_plasma),
+            "mag_gap": state.mag.data_gap,
+            "plasma_gap": state.plasma.data_gap if state.plasma else True,
+        }
+    }
+
+# Simple in-memory metrics
+_request_counts = {}
+_request_durations = {}
+
+@router.get("/api/metrics")
+async def get_metrics():
+    """
+    Simple metrics endpoint for monitoring.
+    In production, use Prometheus or similar.
+    """
+    return {
+        "uptime": (datetime.now(timezone.utc) - store.state.last_updated).total_seconds()
+            if store.state.last_updated else 0,
+        "websocket_connections": ws_manager.connection_count,
+        "data_freshness": {
+            "mag_readings": len(store.state.mag.readings) if store.state.mag else 0,
+            "plasma_readings": len(store.state.plasma.readings) if store.state.plasma else 0,
+            "ovation_cells": len(store.state.ovation.cells) if store.state.ovation else 0,
+        },
+        "cache_size": len(getattr(_fetch_cloud_cover_cached, '_cache', {})),
+    }
