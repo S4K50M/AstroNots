@@ -90,12 +90,12 @@ export default function MapPage() {
 
 
         {/* BOTTOM HUD ROW */}
-        <div className="flex flex-col md:flex-row justify-between items-end gap-4 pb-16 md:pb-0">
+        <div className="grid grid-cols-5 items-end gap-2 sm:gap-3 md:gap-4 pb-16 md:pb-0 w-full">
           
           {/* Bottom Left: REVISED Map Legend */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-surface/80 backdrop-blur-xl border border-slate-700/50 p-4 rounded-xl shadow-2xl pointer-events-auto w-full md:w-80"
+            className="bg-surface/80 backdrop-blur-xl border border-slate-700/50 p-2.5 sm:p-3 md:p-4 rounded-xl shadow-2xl pointer-events-auto w-full col-span-4 min-w-0"
           >
             <h3 className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mb-3">Emission Spectrum (Probability)</h3>
             
@@ -128,17 +128,17 @@ export default function MapPage() {
           {/* Bottom Right: Target Lock Coordinates */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-cyan-950/40 backdrop-blur-xl border border-cyan-900/50 p-3 rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.1)] pointer-events-auto flex items-center gap-4 w-full md:w-auto"
+            className="bg-cyan-950/40 backdrop-blur-xl border border-cyan-900/50 p-1.5 sm:p-2 md:p-2.5 rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.1)] pointer-events-auto flex items-center gap-2 w-full col-span-1 justify-self-end min-w-0"
           >
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-cyan-900/50 border border-cyan-500/50 shrink-0">
-              <Crosshair size={18} className="text-cyan-400" />
+            <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-900/50 border border-cyan-500/50 shrink-0">
+              <Crosshair size={12} className="text-cyan-400" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-[9px] font-bold tracking-widest text-cyan-500 uppercase">Target Lock</span>
-              <span className="text-xs font-mono text-white tracking-wider">
+            <div className="flex flex-col min-w-0">
+              <span className="text-[7px] sm:text-[8px] font-bold tracking-[0.14em] text-cyan-500 uppercase">Target Lock</span>
+              <span className="text-[9px] sm:text-[10px] md:text-[11px] font-mono text-white tracking-wider truncate">
                 {targetLat.toFixed(2)}N, {targetLon.toFixed(2)}E
               </span>
-              <span className="text-[9px] font-mono text-violet-400 mt-0.5">
+              <span className="text-[7px] sm:text-[8px] font-mono text-violet-400 mt-0.5 truncate">
                 VISIBILITY: {visibility?.composite_score || '--'}/100
               </span>
             </div>

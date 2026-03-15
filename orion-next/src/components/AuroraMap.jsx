@@ -4,6 +4,11 @@ import SightingsLayer from "./SightingLayer" // Make sure filename matches your 
 import L from "leaflet"
 import 'leaflet/dist/leaflet.css'
 
+const MAP_MAX_BOUNDS = [
+  [-85, -170],
+  [85, 170],
+]
+
 // ── OVATION Glowing Canvas Overlay ──────────────────────────────
 function OvationLayer({ cells }) {
   const map = useMap()
@@ -157,6 +162,8 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
         zoom={3}
         minZoom={2}
         maxZoom={8}
+        maxBounds={MAP_MAX_BOUNDS}
+        maxBoundsViscosity={1.0}
         zoomControl={false} // Hiding default controls for cleaner UI
         className="w-full h-full bg-[#030712] z-0"
       >
@@ -164,6 +171,7 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
         <TileLayer
           url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
           attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+          noWrap
         />
 
         <OvationLayer cells={cells} />
@@ -175,7 +183,7 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
       </MapContainer>
 
       {/* Legend - Now integrated directly into the HUD via MapPage, or kept here as a fallback */}
-      <div className="absolute bottom-4 left-4 z-[400] text-[9px] text-slate-400 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-md border border-slate-800 font-mono tracking-wide shadow-lg pointer-events-none">
+      <div className="absolute bottom-2 left-2 sm:bottom-4 sm:left-4 z-[400] text-[8px] sm:text-[9px] text-slate-400 bg-black/60 backdrop-blur-md px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-md border border-slate-800 font-mono tracking-wide shadow-lg pointer-events-none max-w-[90%]">
         GRID LOADED: {cells.length ? `${cells.length} SECTORS` : "AWAITING SYNC..."}
       </div>
 
