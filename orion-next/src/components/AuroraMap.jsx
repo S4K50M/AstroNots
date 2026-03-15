@@ -113,6 +113,82 @@ function OvationLayer({ cells }) {
   return null
 }
 
+// ── Day/Night Cycle Overlay ──────────────────────────────
+function DayNightLayer() {
+  const map = useMap()
+
+  useEffect(() => {
+    const TerminatorOverlay = L.Layer.extend({
+      onAdd(map) {
+        this._map = map
+        const pane = map.getPane("overlayPane")
+
+        this._canvas = L.DomUtil.create("canvas", "", pane)
+        this._canvas.style.position = "absolute"
+        this._canvas.style.pointerEvents = "none"
+        this._canvas.style.opacity = "0.3"
+        this._canvas.style.mixBlendMode = "multiply"
+
+        map.on("moveend zoomend resize", this._render, this)
+        this._render()
+      },
+
+      onRemove(map) {
+        L.DomUtil.remove(this._canvas)
+        map.off("moveend zoomend resize", this._render, this)
+      },
+
+      _render() {
+        const map = this._map
+        const cv = this._canvas
+        const size = map.getSize()
+
+        cv.width = size.x
+        cv.height = size.y
+
+        const ctx = cv.getContext("2d")
+
+        L.DomUtil.setPosition(cv, map.containerPointToLayerPoint([0, 0]))
+
+        ctx.clearRect(0, 0, cv.width, cv.height)
+
+        // Calculate sun position
+        const now = new Date()
+        const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000)
+        const declination = 23.45 * Math.sin((360 / 365) * (dayOfYear - 81) * Math.PI / 180)
+        const hour = now.getUTCHours() + now.getUTCMinutes() / 60
+        const sunLon = (hour - 12) * 15
+
+        // Draw night overlay
+        ctx.fillStyle = "rgba(255, 255, 255, 0.94)"
+
+        for (let x = 0; x < size.x; x += 10) {
+          for (let y = 0; y < size.y; y += 10) {
+            const latlng = map.containerPointToLatLng([x, y])
+            const lat = latlng.lat * Math.PI / 180
+            const lon = latlng.lng * Math.PI / 180
+            const dec = declination * Math.PI / 180
+            const HA = lon - (sunLon * Math.PI / 180)
+
+            const alt = Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(HA)
+
+            if (alt > 0) {
+              ctx.fillRect(x, y, 10, 10)
+            }
+          }
+        }
+      },
+    })
+
+    const layer = new TerminatorOverlay()
+    layer.addTo(map)
+
+    return () => map.removeLayer(layer)
+  }, [map])
+
+  return null
+}
+
 // ── Glassmorphism Location Marker ──────────────────────────────
 function LocationMarker({ lat, lon, score }) {
   const map = useMap()
@@ -175,6 +251,7 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
         />
 
         <OvationLayer cells={cells} />
+        <DayNightLayer />
         <SightingsLayer />
 
         {userLat && userLon && (
