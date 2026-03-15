@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getVisibility } from '@/services/api'
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
+import { useVisibility } from "@/hooks/useVisibility";
 import { motion } from "framer-motion";
 import { Camera, MapPin, Aperture, Clock, Zap, BarChart2, Crosshair, CloudMoon } from "lucide-react";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";

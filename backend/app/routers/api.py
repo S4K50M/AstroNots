@@ -28,6 +28,7 @@ from pydantic import BaseModel, Field
 
 from app.services.noaa_poller import store
 from app.services.visibility import compute_visibility_score
+from app.core.logging import logger
 from app.services.routing import find_dark_sky_route
 from app.services.alerts import ws_manager, save_location, get_location, list_locations, delete_location
 
@@ -146,7 +147,6 @@ async def get_forecast():
             })
         return {"forecast": rows, "count": len(rows)}
     except Exception as e:
-        from app.core.logging import logger
         logger.error("forecast_fetch_failed", error=str(e))
         raise HTTPException(status_code=503, detail="Failed to fetch forecast from NOAA")
 
@@ -281,8 +281,8 @@ async def health_check():
 
 # ── WebSocket ─────────────────────────────────────────────────────────────────
 
-@router.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
+@router.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
     """
     Real-time event stream.
 
@@ -297,15 +297,25 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
       { "type": "PONG" }
       { "type": "WELCOME", "client_id": "..." }
     """
+    # Generate client_id from query parameter or create one
+    client_id = websocket.query_params.get("client_id", f"client-{id(websocket) % 10000}")
+    logger.info("websocket_connection_attempt", client_id=client_id)
     await ws_manager.connect(client_id, websocket)
+    logger.info("websocket_connected", client_id=client_id)
 
     try:
         # Send welcome with current state
         import json
+        try:
+            summary = store.state.summary_dict()
+        except Exception as e:
+            logger.error("failed_to_get_summary", error=str(e))
+            summary = {}
+        
         await websocket.send_text(json.dumps({
             "type":      "WELCOME",
             "client_id": client_id,
-            "summary":   store.state.summary_dict(),
+            "summary":   summary,
         }))
 
         while True:
@@ -321,16 +331,22 @@ async def websocket_endpoint(websocket: WebSocket, client_id: str):
                 await websocket.send_json({"type": "PONG"})
 
             elif action == "get_status":
+                try:
+                    status_summary = store.state.summary_dict()
+                except Exception as e:
+                    logger.error("failed_to_get_status_summary", error=str(e))
+                    status_summary = {}
                 await websocket.send_json({
                     "type":    "STATUS",
-                    "summary": store.state.summary_dict(),
+                    "summary": status_summary,
                 })
 
     except WebSocketDisconnect:
+        logger.info("websocket_disconnected", client_id=client_id)
         await ws_manager.disconnect(client_id)
-    except Exception as exc:
-        from app.core.logging import logger
-        logger.warning("ws_error", client_id=client_id, error=str(exc))
+    except Exception as e:
+        logger.error("websocket_error", client_id=client_id, error=str(e))
+        await ws_manager.disconnect(client_id)
         await ws_manager.disconnect(client_id)
 
 
