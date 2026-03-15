@@ -2,7 +2,8 @@
 
 FastAPI + Python. Polls NOAA SWPC in real time.
 
-## Setup (WSL / Mac / Linux)
+Setup 
+(WSL / Mac / Linux)
 
 ```bash
 cd backend
@@ -12,6 +13,16 @@ pip install -r requirements.txt
 cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
+(Windows)
+'''bash
+cd backend
+python -m venv .venv
+.venv\Scripts\Activate
+pip install -r requirements.txt
+cp .env.example .env
+uvicorn app.main:app --reload --port 8000
+'''
+
 
 API docs → http://localhost:8000/docs
 
