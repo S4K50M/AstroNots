@@ -35,17 +35,6 @@ W_AURORA   = 0.45
 W_DARKNESS = 0.30
 W_CLOUD    = 0.25
 
-<<<<<<< HEAD
-# Fetch low, mid, and high cloud layers + ground visibility
-OPEN_METEO_URL = (
-    "https://api.open-meteo.com/v1/forecast"
-    "?latitude={lat}&longitude={lon}"
-    "&hourly=cloudcover,cloudcover_low,cloudcover_mid,cloudcover_high,visibility"
-    "&forecast_days=1&timezone=UTC"
-)
-
-=======
->>>>>>> ca424b2 (save changes)
 
 # ── Bortle class lookup (approximate by lat/lon distance to dark-sky zones) ──
 _MAJOR_CITIES: list[tuple[float, float, int]] = [
@@ -68,6 +57,14 @@ _MAJOR_CITIES: list[tuple[float, float, int]] = [
 # ── Cache for weather API calls ────────────────────────────────────────────
 _weather_cache: dict[str, tuple[float, datetime]] = {}
 _cache_lock = asyncio.Lock()
+
+async def _fetch_cloud_cover(lat: float, lon: float) -> float:
+    """
+    Fetch cloud cover percentage from Meteoblue API.
+    Returns cloud cover as a percentage (0-100).
+    """
+    weather_data = await fetch_local_weather(lat, lon)
+    return weather_data.get("cloud_cover_percent", 50.0)
 
 async def _fetch_cloud_cover_cached(lat: float, lon: float) -> float:
     """
@@ -218,73 +215,12 @@ def _lon_dist(a: float, b: float) -> float:
     return min(d, 360 - d)
 
 
-<<<<<<< HEAD
-async def _fetch_cloud_cover(lat: float, lon: float) -> float:
-    """
-    Fetch multi-layer cloud cover from Open-Meteo (No API Key required).
-    Weights low-altitude clouds (the view blockers) more heavily.
-    """
-    url = OPEN_METEO_URL.format(lat=round(lat, 4), lon=round(lon, 4))
-    try:
-        async with httpx.AsyncClient(timeout=8.0) as client:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            data = resp.json()
-
-        hourly = data.get("hourly", {})
-        # Find index for the current hour
-        from datetime import datetime, timezone
-        now = datetime.now(timezone.utc)
-        times = hourly.get("time", [])
-        best_idx = 0
-        best_diff = float('inf')
-        for i, t in enumerate(times):
-            dt = datetime.fromisoformat(t).replace(tzinfo=timezone.utc)
-            diff = abs((dt - now).total_seconds())
-            if diff < best_diff:
-                best_diff = diff
-                best_idx = i
-
-        # Extract layers
-        low = hourly.get("cloudcover_low", [0])[best_idx]
-        mid = hourly.get("cloudcover_mid", [0])[best_idx]
-        high = hourly.get("cloudcover_high", [0])[best_idx]
-
-        # HEURISTIC: Low clouds block the aurora completely. 
-        # High clouds (cirrus) are often wispy and aurora can be shot through them.
-        weighted_cloud = (low * 0.70) + (mid * 0.20) + (high * 0.10)
-        
-        return float(weighted_cloud)
-
-    except Exception as exc:
-        from app.core.logging import logger
-        logger.warning(f"WEATHER_FALLBACK_TRIGGERED: {str(exc)}")
-        return 50.0 # Only returns 50 if the internet actually cuts out
-
-async def compute_visibility_score(lat: float, lon: float) -> dict:
-    """
-    Main entry point. Returns a full breakdown dict with composite score.
-    """
-    # Validate inputs
-    if not (-90 <= lat <= 90):
-        raise ValueError(f"Invalid latitude: {lat}. Must be between -90 and 90")
-    if not (-180 <= lon <= 180):
-        raise ValueError(f"Invalid longitude: {lon}. Must be between -180 and 180")
-    
-    now = datetime.now(timezone.utc)
-
-    # Run cloud fetch concurrently with local calculations
-    cloud_coro = _fetch_cloud_cover_cached(lat, lon)
-    cloud_cover_pct, aurora_prob = await asyncio.gather(
-        cloud_coro,
-=======
 async def compute_visibility_score(lat: float, lon: float) -> dict:
     now = datetime.now(timezone.utc)
 
     # --- NEW: Concurrent fetch using Meteoblue instead of Open-Meteo ---
     weather_data, aurora_prob = await asyncio.gather(
         fetch_local_weather(lat, lon),
->>>>>>> ca424b2 (save changes)
         asyncio.to_thread(_aurora_score_for_location, lat, lon),
     )
     

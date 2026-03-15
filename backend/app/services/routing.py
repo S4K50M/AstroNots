@@ -26,7 +26,6 @@ from app.core.logging import logger
 from app.services.visibility import (
     _bortle_to_score,
     _estimate_bortle,
-    _fetch_cloud_cover,
 )
 
 # --- NEW: Import Meteoblue fetcher ---

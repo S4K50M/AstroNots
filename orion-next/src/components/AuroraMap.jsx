@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react"
 import { MapContainer, TileLayer, useMap } from "react-leaflet"
-import SightingsLayer from "./SightingsLayer"
+import SightingsLayer from "./SightingLayer" // Make sure filename matches your project
 import L from "leaflet"
+import 'leaflet/dist/leaflet.css'
 
-// ── OVATION canvas overlay ─────────────────────────────────────
+// ── OVATION Glowing Canvas Overlay ──────────────────────────────
 function OvationLayer({ cells }) {
   const map = useMap()
   const canvasRef = useRef(null)
@@ -19,7 +20,9 @@ function OvationLayer({ cells }) {
         this._canvas = L.DomUtil.create("canvas", "", pane)
         this._canvas.style.position = "absolute"
         this._canvas.style.pointerEvents = "none"
-        this._canvas.style.opacity = "0.9"
+        // Base opacity for the entire glassy layer
+        this._canvas.style.opacity = "0.8" 
+        // Screen blending makes overlapping colors pop and glow like light
         this._canvas.style.mixBlendMode = "screen"
 
         map.on("moveend zoomend resize", this._render, this)
@@ -48,9 +51,13 @@ function OvationLayer({ cells }) {
 
         ctx.clearRect(0, 0, cv.width, cv.height)
 
+        // Screen/Lighter blending makes intersecting points brighten into a glowing core
+        ctx.globalCompositeOperation = "lighter"
+
         cells.forEach(({ lon, lat, aurora }) => {
-          if (aurora < 5) return
-          if (lat > tl.lat + 5 || lat < br.lat - 5) return
+          if (aurora < 5) return // Ignore dead zones to save CPU
+          
+          if (lat > tl.lat + 10 || lat < br.lat - 10) return
 
           const point = map.latLngToContainerPoint([
             lat,
@@ -58,33 +65,35 @@ function OvationLayer({ cells }) {
           ])
 
           const zoom = map.getZoom()
-          const r = Math.max(4, zoom * 3)
+          // Radius scales with zoom so the glow remains continuous
+          const r = Math.max(15, zoom * 10) 
 
-          let r_, g_, b_
+          // THE FIX: p is between 0 and 1.
           const p = aurora / 100
-
-          if (p > 0.8) {
-            r_ = 255
-            g_ = 77
-            b_ = 77
-          } else if (p > 0.5) {
-            r_ = 255
-            g_ = 184
-            b_ = 48
-          } else if (p > 0.2) {
-            r_ = 0
-            g_ = 255
-            b_ = 163
+          let rgb = ""
+          
+          // Realistic Aurora Emission Spectrum
+          if (p >= 0.8) {
+            rgb = "255, 40, 100"  // EXTREME: High-Altitude Oxygen (Crimson/Pink)
+          } else if (p >= 0.5) {
+            rgb = "168, 85, 247"  // HIGH: Nitrogen Resonance (Violet/Purple)
+          } else if (p >= 0.2) {
+            rgb = "16, 185, 129"  // MEDIUM: Classic Aurora (Bright Emerald Green)
           } else {
-            r_ = 0
-            g_ = 120
-            b_ = 70
+            rgb = "4, 120, 87"    // LOW: Faint atmospheric glow (Dark Green)
           }
+
+          // Radial gradient for the glassy, soft-light effect
+          const grad = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, r)
+          
+          // The core is brighter, the edges fade perfectly to transparent
+          grad.addColorStop(0, `rgba(${rgb}, ${0.3 + (p * 0.4)})`)     
+          grad.addColorStop(0.4, `rgba(${rgb}, ${0.1 + (p * 0.2)})`)   
+          grad.addColorStop(1, `rgba(${rgb}, 0)`)                      
 
           ctx.beginPath()
           ctx.arc(point.x, point.y, r, 0, Math.PI * 2)
-
-          ctx.fillStyle = `rgba(${r_},${g_},${b_},${0.25 + p * 0.45})`
+          ctx.fillStyle = grad
           ctx.fill()
         })
       },
@@ -100,33 +109,35 @@ function OvationLayer({ cells }) {
   return null
 }
 
-// ── Location marker ────────────────────────────────────────────
+// ── Glassmorphism Location Marker ──────────────────────────────
 function LocationMarker({ lat, lon, score }) {
   const map = useMap()
 
   useEffect(() => {
     if (!lat || !lon) return
 
-    const color =
-      score >= 70 ? "#00ffa3" : score >= 40 ? "#ffb830" : "#ff4d4d"
+    const color = score >= 70 ? "#00ffa3" : score >= 40 ? "#c084fc" : "#22d3ee"
 
     const icon = L.divIcon({
-      className: "",
-      html: `<div style="
-        width:14px;
-        height:14px;
-        border-radius:50%;
-        background:${color};
-        border:2px solid #fff;
-        box-shadow:0 0 10px ${color};
-      "></div>`,
-      iconAnchor: [7, 7],
+      className: "custom-glass-marker",
+      html: `
+        <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px;">
+          <div style="position: absolute; width: 100%; height: 100%; border-radius: 50%; background: ${color}; opacity: 0.4; animation: pulseGlow 2s infinite;"></div>
+          <div style="width: 10px; height: 10px; border-radius: 50%; background: ${color}; border: 1.5px solid white; box-shadow: 0 0 10px ${color}, inset 0 0 4px rgba(255,255,255,0.8); z-index: 10;"></div>
+        </div>
+      `,
+      iconAnchor: [12, 12],
     })
 
     const marker = L.marker([lat, lon], { icon }).addTo(map)
 
+    // Add a dark, sleek popup
     marker.bindPopup(
-      `<b style="font-family:monospace">Score: ${score ?? "--"}/100</b>`
+      `<div style="font-family: monospace; text-align: center; color: #fff;">
+         <div style="font-size: 10px; color: #94a3b8; letter-spacing: 1px; margin-bottom: 2px;">VISIBILITY SCORE</div>
+         <div style="font-size: 16px; font-weight: bold; color: ${color};">${score ?? "--"}/100</div>
+       </div>`,
+      { className: 'glass-popup' }
     )
 
     return () => map.removeLayer(marker)
@@ -140,19 +151,20 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
   const cells = ovation?.cells ?? []
 
   return (
-    <div className="relative flex-1 min-h-[340px] overflow-hidden rounded-xl border border-white/10">
+    <div className="relative flex-1 h-full w-full overflow-hidden rounded-xl border border-slate-700/50 shadow-inner bg-void">
 
       <MapContainer
-        center={[65, 0]}
+        center={[65, -10]}
         zoom={3}
         minZoom={2}
         maxZoom={8}
-        zoomControl={true}
-        className="w-full h-full min-h-[340px] bg-black"
+        zoomControl={false} // Hiding default controls for cleaner UI
+        className="w-full h-full bg-[#030712] z-0"
       >
+        {/* Very dark, desaturated base map perfect for glowing overlays */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution=""
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com/">CARTO</a>'
         />
 
         <OvationLayer cells={cells} />
@@ -163,28 +175,9 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
         )}
       </MapContainer>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 z-[500] flex flex-col gap-1 bg-black/70 border border-white/10 rounded-lg px-3 py-2 backdrop-blur">
-        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
-          <span className="w-2 h-2 rounded-full bg-red-400"></span>80–100%
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
-          <span className="w-2 h-2 rounded-full bg-amber-400"></span>50–80%
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
-          <span className="w-2 h-2 rounded-full bg-emerald-400"></span>20–50%
-        </div>
-        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
-          <span className="w-2 h-2 rounded-full bg-green-700"></span>5–20%
-        </div>
-      </div>
-
-      {/* Label */}
-      <div className="absolute bottom-4 left-4 z-[500] text-[10px] text-gray-400 bg-black/60 px-2 py-1 rounded font-mono tracking-wide">
-        OVATION · {cells.length ? `${cells.length} cells` : "loading..."}
-        {ovation?.observation_time && (
-          <> · {new Date(ovation.observation_time).toUTCString().slice(17, 25)} UTC</>
-        )}
+      {/* Legend - Now integrated directly into the HUD via MapPage, or kept here as a fallback */}
+      <div className="absolute bottom-4 left-4 z-[400] text-[9px] text-slate-400 bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-md border border-slate-800 font-mono tracking-wide shadow-lg pointer-events-none">
+        GRID LOADED: {cells.length ? `${cells.length} SECTORS` : "AWAITING SYNC..."}
       </div>
 
     </div>
