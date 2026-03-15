@@ -16,8 +16,15 @@ import time
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     configure_logging(debug=settings.DEBUG)
+    logger.info("validating_configuration")
+    
+    # Validate critical configuration
+    assert settings.BZ_ALERT_THRESHOLD < 0, "BZ_ALERT_THRESHOLD must be negative"
+    assert settings.SOLAR_WIND_SPEED_THRESHOLD > 0, "SOLAR_WIND_SPEED_THRESHOLD must be positive"
+    assert settings.MAG_POLL_INTERVAL >= 30, "MAG_POLL_INTERVAL should be >= 30 seconds"
+    
     logger.info("startup", app=settings.APP_NAME, version=settings.APP_VERSION)
 
     # Start NOAA poller
@@ -37,7 +44,6 @@ async def lifespan(app: FastAPI):
     await poller.stop()
     logger.info("shutdown_complete")
 
-
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -53,30 +59,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    configure_logging(debug=settings.DEBUG)
-    
-    # Validate critical configuration
-    logger.info("validating_configuration")
-    
-    assert settings.BZ_ALERT_THRESHOLD < 0, "BZ_ALERT_THRESHOLD must be negative"
-    assert settings.SOLAR_WIND_SPEED_THRESHOLD > 0, "SOLAR_WIND_SPEED_THRESHOLD must be positive"
-    assert settings.MAG_POLL_INTERVAL >= 30, "MAG_POLL_INTERVAL should be >= 30 seconds"
-    
-    # Test NOAA endpoint reachability (optional, but good practice)
-    try:
-        import httpx
-        async with httpx.AsyncClient(timeout=5) as client:
-            response = await client.get(f"{settings.NOAA_BASE_URL}/products/alerts.json")
-            response.raise_for_status()
-        logger.info("noaa_endpoint_reachable")
-    except Exception as e:
-        logger.warning(f"noaa_endpoint_check_failed: {str(e)}")
-    
-    logger.info("startup", app=settings.APP_NAME, version=settings.APP_VERSION)
-
 
 app.include_router(router)
 

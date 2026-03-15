@@ -14,9 +14,10 @@ cloud_score    — inverted cloud cover from Open-Meteo free API
 """
 from __future__ import annotations
 
+import os
 import math
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 import httpx
@@ -40,17 +41,6 @@ OPEN_METEO_URL = (
     "&forecast_days=1&timezone=UTC"
 )
 
-import os
-
-# ── Meteoblue Astronomy API ───────────────────────────────────────────────────
-# This securely pulls the key from your .env file or system environment
-METEOBLUE_API_KEY = os.getenv("METEOBLUE_API_KEY", "fallback_key_if_missing")
-
-METEOBLUE_URL = (
-    "https://my.meteoblue.com/packages/basic-1h_basic-day_clouds-15min_sunmoon_moonlight-15min"
-    "?apikey={apikey}&lat={lat}&lon={lon}&asl=764&format=json"
-)
-
 
 # ── Bortle class lookup (approximate by lat/lon distance to dark-sky zones) ──
 # Real implementation would use VIIRS DNB raster.
@@ -72,9 +62,6 @@ _MAJOR_CITIES: list[tuple[float, float, int]] = [
     (64.14, -21.94, 4), # Reykjavik
     (69.65, 18.96, 2),  # Tromsø
 ]
-
-from datetime import datetime, timezone, timedelta
-import asyncio
 
 # ── Cache for weather API calls ────────────────────────────────────────────
 _weather_cache: dict[str, tuple[float, datetime]] = {}
@@ -104,8 +91,11 @@ async def _fetch_cloud_cover_cached(lat: float, lon: float) -> float:
         
         # Cleanup old entries (keep cache size manageable)
         if len(_weather_cache) > 1000:
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=1)
-            _weather_cache.clear()  # Simple strategy: clear all on overflow
+            # Sort keys by timestamp (oldest first)
+            sorted_keys = sorted(_weather_cache.keys(), key=lambda k: _weather_cache[k][1])
+            # Delete the oldest 200 entries to free up space safely
+            for k in sorted_keys[:200]:
+                del _weather_cache[k]
     
     return cloud_cover
 
@@ -260,14 +250,8 @@ async def _fetch_cloud_cover(lat: float, lon: float) -> float:
     Fetch multi-layer cloud cover from Open-Meteo (No API Key required).
     Weights low-altitude clouds (the view blockers) more heavily.
     """
-    url = (
-        f"https://api.open-meteo.com/v1/forecast"
-        f"?latitude={round(lat, 4)}&longitude={round(lon, 4)}"
-        f"&hourly=cloudcover,cloudcover_low,cloudcover_mid,cloudcover_high"
-        f"&forecast_days=1&timezone=UTC"
-    )
+    url = OPEN_METEO_URL.format(lat=round(lat, 4), lon=round(lon, 4))
     try:
-        import httpx
         async with httpx.AsyncClient(timeout=8.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()

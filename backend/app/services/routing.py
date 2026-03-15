@@ -24,10 +24,11 @@ import os
 import httpx
 
 from app.core.logging import logger
+
 from app.services.visibility import (
     _aurora_score_for_location,
     _estimate_bortle,
-    _fetch_cloud_cover,
+    _fetch_cloud_cover_cached,
 )
 
 
@@ -160,7 +161,6 @@ def _aurora_score_direct(lat: float, lon: float) -> float:
     score = _aurora_score_for_location(lat, lon)
 
     # If OVATION returns near-zero, estimate from Kp + latitude
-    # If OVATION returns near-zero, estimate from Kp + latitude
     if score < 5:
         kp = None
         if store.state.kp and store.state.kp.latest:
@@ -203,7 +203,7 @@ async def _score_candidate(lat: float, lon: float) -> dict:
             "qualifies": False,
         }
 
-    cloud = await _fetch_cloud_cover(lat, lon)
+    cloud = await _fetch_cloud_cover_cached(lat, lon)
     qualifies = (
         aurora_prob >= MIN_AURORA_PROB and
         cloud <= MAX_CLOUD_COVER and

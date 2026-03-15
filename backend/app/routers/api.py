@@ -33,7 +33,6 @@ from app.services.alerts import ws_manager, save_location, get_location, list_lo
 
 import asyncio
 from datetime import datetime, timezone
-from typing import Optional
 
 router = APIRouter()
 
@@ -147,7 +146,9 @@ async def get_forecast():
             })
         return {"forecast": rows, "count": len(rows)}
     except Exception as e:
-        return {"forecast": [], "count": 0, "error": str(e)}
+        from app.core.logging import logger
+        logger.error("forecast_fetch_failed", error=str(e))
+        raise HTTPException(status_code=503, detail="Failed to fetch forecast from NOAA")
 
 
 @router.get("/api/visibility")
@@ -353,8 +354,6 @@ async def get_visibility_batch(body: LocationBatch):
       ]
     }
     """
-    results = []
-    
     # Process in parallel with semaphore to limit concurrency
     sem = asyncio.Semaphore(10)
     
@@ -441,6 +440,8 @@ async def get_metrics():
     Simple metrics endpoint for monitoring.
     In production, use Prometheus or similar.
     """
+    from app.services.visibility import _weather_cache  # Safely import the dictionary here
+
     return {
         "uptime": (datetime.now(timezone.utc) - store.state.last_updated).total_seconds()
             if store.state.last_updated else 0,
@@ -450,5 +451,5 @@ async def get_metrics():
             "plasma_readings": len(store.state.plasma.readings) if store.state.plasma else 0,
             "ovation_cells": len(store.state.ovation.cells) if store.state.ovation else 0,
         },
-        "cache_size": len(getattr(_fetch_cloud_cover_cached, '_cache', {})),
+        "cache_size": len(_weather_cache),
     }

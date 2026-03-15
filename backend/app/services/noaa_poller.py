@@ -58,7 +58,7 @@ class SpaceWeatherStore:
             cls._instance = super().__new__(cls)
             cls._instance._state = SpaceWeatherState()
             cls._instance._lock = asyncio.Lock()
-            cls._instance._alert_callbacks: list = []
+            cls._instance._alert_callbacks = []
         return cls._instance
 
     @property
