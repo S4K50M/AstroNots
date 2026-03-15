@@ -34,12 +34,23 @@ def _parse_float(v: Any) -> Optional[float]:
     """Return float or None for any NOAA missing-value sentinel."""
     if v is None:
         return None
-    s = str(v).strip()
-    if s in _MISSING_SENTINEL:
-        return None
+    
     try:
-        return float(s)
-    except ValueError:
+        s = str(v).strip()
+        if s in _MISSING_SENTINEL:
+            return None
+        
+        # Handle scientific notation
+        if 'e' in s.lower() or 'E' in s:
+            return float(s)
+        
+        # Remove any non-numeric characters except . and -
+        cleaned = ''.join(c for c in s if c.isdigit() or c in '.-')
+        if not cleaned or cleaned == '-' or cleaned == '.':
+            return None
+            
+        return float(cleaned)
+    except (ValueError, AttributeError):
         return None
 
 
@@ -307,6 +318,17 @@ class OvationResponse(BaseModel):
         for row in grid:
             try:
                 if isinstance(row, (list, tuple)):
+                    lon_val = float(row[0])
+                    lat_val = float(row[1])
+                    aurora_val = float(row[2])
+            
+                    # Validate ranges
+                    if not (0 <= lon_val < 360):
+                        continue
+                    if not (-90 <= lat_val <= 90):
+                        continue
+                    if not (0 <= aurora_val <= 100):
+                        continue
                     cells.append(OvationCell(lon=float(row[0]), lat=float(row[1]), aurora=float(row[2])))
                 elif isinstance(row, dict):
                     cells.append(OvationCell(

@@ -59,11 +59,13 @@ export default function AlertsPage() {
               ))}
 
               {/* Render NOAA Alerts */}
-              {noaaAlerts?.alerts?.map((alert: any) => {
+              {noaaAlerts?.alerts?.map((alert: any, idx: number) => {
                 const isWarning = alert.message.includes("WARNING") || alert.message.includes("STORM");
+                const key = alert.issue_id?.toString().trim() || `noaa-${idx}`;
+
                 return (
                   <motion.div 
-                    key={alert.issue_id} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                    key={key} initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                     className={`p-4 rounded-lg bg-black/30 border-l-4 flex gap-4 ${isWarning ? 'border-amber-500' : 'border-cyan-500'}`}
                   >
                     <Info className={`${isWarning ? 'text-amber-500' : 'text-cyan-500'} shrink-0 mt-1`} size={20} />
