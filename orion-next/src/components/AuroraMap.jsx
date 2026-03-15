@@ -120,7 +120,7 @@ function LocationMarker({ lat, lon, score }) {
   useEffect(() => {
     if (!lat || !lon) return
 
-    const color = score >= 70 ? "#00ffa3" : score >= 40 ? "#c084fc" : "#22d3ee"
+    const color = "#ef4444" // Red color for current location
 
     const icon = L.divIcon({
       className: "custom-glass-marker",
@@ -158,7 +158,7 @@ export default function AuroraMap({ ovation, userLat, userLon, score }) {
     <div className="relative flex-1 h-full w-full overflow-hidden rounded-xl border border-slate-700/50 shadow-inner bg-void">
 
       <MapContainer
-        center={[65, -10]}
+        center={[userLat || 65, userLon || -10]}
         zoom={3}
         minZoom={2}
         maxZoom={8}

@@ -4,11 +4,14 @@ import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import './index.css'
 import 'leaflet/dist/leaflet.css';
+import { LocationProvider } from './contexts/LocationContext'
 
 registerSW({ immediate: true })
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <App />
+    <LocationProvider>
+      <App />
+    </LocationProvider>
   </React.StrictMode>
 )

@@ -4,6 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
 import { useVisibility } from "@/hooks/useVisibility";
+import { useLocation } from "@/contexts/LocationContext";
 import { motion } from "framer-motion";
 import { Map as MapIcon, Crosshair, Activity, Layers, LocateFixed } from "lucide-react";
 
@@ -21,9 +22,8 @@ const AuroraMap = dynamic(() => import("@/components/AuroraMap"), {
 });
 
 export default function MapPage() {
-  // Defaulting to Tromsø, Norway
-  const [targetLat, setTargetLat] = useState(69.65);
-  const [targetLon, setTargetLon] = useState(18.96);
+  // Use global location from context
+  const { latitude: targetLat, longitude: targetLon } = useLocation();
 
   // Fetching the OVATION grid and Kp data
   const { ovation, kp, loading: swLoading } = useSpaceWeather();

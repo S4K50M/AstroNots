@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import Navbar         from '../components/Navbar'
 import AlertBanner    from '../components/AlertBanner'
 import AuroraMap      from '../components/AuroraMap'
@@ -11,18 +11,25 @@ import AlertsTab        from '../components/AlertsTab'
 import ForecastChart    from '../components/ForecastChart'
 import { useSpaceWeather } from '../hooks/useSpaceWeather'
 import { useWebSocket }    from '../hooks/useWebSocket'
+import { useLocation } from '../contexts/LocationContext'
 import styles from './Dashboard.module.css'
 
 export default function Dashboard() {
   const { status, mag, plasma, ovation, kp, alerts, lastPoll } = useSpaceWeather()
+  // Use global location from context
+  const { latitude: lat, longitude: lon, setLocation } = useLocation()
 
   const [wsAlerts, setWsAlerts] = useState([])
-  const [lat, setLat] = useState(55.86)
-  const [lon, setLon] = useState(-4.25)
-  const [inputLat, setInputLat] = useState('55.86')
-  const [inputLon, setInputLon] = useState('-4.25')
+  const [inputLat, setInputLat] = useState(lat.toString())
+  const [inputLon, setInputLon] = useState(lon.toString())
   const [visScore, setVisScore] = useState(null)
   const [activeTab, setActiveTab] = useState('visibility')
+
+  // Update inputs when global location changes
+  useEffect(() => {
+    setInputLat(lat.toString())
+    setInputLon(lon.toString())
+  }, [lat, lon])
 
   const onMessage = useCallback((msg) => {
     if (msg.type === 'SPACE_WEATHER_ALERT' || msg.type === 'SUBSTORM_PRECURSOR') {
@@ -35,7 +42,9 @@ export default function Dashboard() {
   const applyLocation = () => {
     const la = parseFloat(inputLat)
     const lo = parseFloat(inputLon)
-    if (!isNaN(la) && !isNaN(lo)) { setLat(la); setLon(lo) }
+    if (!isNaN(la) && !isNaN(lo)) {
+      setLocation(la, lo)
+    }
   }
 
   const alertsActive = status?.alerts_active || wsAlerts.length > 0

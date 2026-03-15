@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
+import { useLocation } from "@/contexts/LocationContext";
 import { motion } from "framer-motion";
-import { Activity, Wind, Compass, Zap, BarChart2, ShieldAlert } from "lucide-react";
+import { Activity, Wind, Compass, Zap, BarChart2, ShieldAlert, MapPin } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, Cell, XAxis, YAxis, 
   CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine 
@@ -24,6 +25,7 @@ const item = {
 };
 
 export default function TelemetryPage() {
+  const { latitude, longitude } = useLocation();
   const { kp } = useSpace();
   const { mag, plasma, loading: swLoading } = useSpaceWeather();
   const [forecast, setForecast] = useState<any[]>([]);
@@ -77,11 +79,18 @@ export default function TelemetryPage() {
       <div className="max-w-7xl mx-auto h-full flex flex-col gap-6 pb-20">
         
         {/* HEADER */}
-        <header className="flex items-center gap-3 mb-2">
-          <Activity size={28} className="text-cyan-400" />
-          <h1 className="text-2xl font-black tracking-[0.2em] text-white uppercase">
-            Solar Wind <span className="text-slate-500">Telemetry</span>
-          </h1>
+        <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-2">
+          <div className="flex items-center gap-3">
+            <Activity size={28} className="text-cyan-400" />
+            <h1 className="text-2xl font-black tracking-[0.2em] text-white uppercase">
+              Solar Wind <span className="text-slate-500">Telemetry</span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-400 bg-surface/80 backdrop-blur-xl border border-slate-700/50 px-3 py-2 rounded-lg w-fit">
+            <MapPin size={14} className="text-cyan-400 shrink-0" />
+            <span className="text-slate-300">Global location:</span>
+            <span className="text-cyan-400">{latitude.toFixed(4)}, {longitude.toFixed(4)}</span>
+          </div>
         </header>
 
         {swLoading ? (

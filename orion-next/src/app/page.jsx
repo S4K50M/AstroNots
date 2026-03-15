@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
 import { useVisibility } from "@/hooks/useVisibility";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useLocation } from "@/contexts/LocationContext";
 import { motion, AnimatePresence } from "framer-motion";
 import { Compass, Satellite, TriangleAlert } from "lucide-react";
 
@@ -36,11 +37,10 @@ function fmt(v, digits = 1) {
 }
 
 export default function Home() {
-  const [targetLat] = useState(64.1466);
-  const [targetLon] = useState(-21.9426);
+  const { latitude, longitude } = useLocation();
 
   const { status, mag, plasma, ovation, kp, loading: swLoading } = useSpaceWeather();
-  const { visibility, loading: visLoading } = useVisibility(targetLat, targetLon);
+  const { visibility, loading: visLoading } = useVisibility(latitude, longitude);
 
   const [liveAlerts, setLiveAlerts] = useState([]);
   const handleNewAlert = useCallback((msg) => {
@@ -251,7 +251,7 @@ export default function Home() {
               Aurora Map Preview
             </h2>
             <div className="h-[calc(100%-32px)] rounded-lg overflow-hidden">
-              <AuroraMap ovation={ovation} userLat={targetLat} userLon={targetLon} score={score} />
+              <AuroraMap ovation={ovation} userLat={latitude} userLon={longitude} score={score} />
             </div>
           </motion.div>
 

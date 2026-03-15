@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getVisibility } from '@/services/api'
 import { useSpaceWeather } from "@/hooks/useSpaceWeather";
 import { useVisibility } from "@/hooks/useVisibility";
+import { useLocation } from "@/contexts/LocationContext";
 import { motion } from "framer-motion";
 import { Camera, MapPin, Aperture, Clock, Zap, BarChart2, Crosshair, CloudMoon } from "lucide-react";
 import { BarChart, Bar, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
@@ -55,8 +56,8 @@ function ProgressBar({ label, value, color }: { label: string, value: number, co
 // --- Main Page Component ---
 
 export default function PhotographyPage() {
-  const [targetLat, setTargetLat] = useState(69.65);
-  const [targetLon, setTargetLon] = useState(18.96);
+  // Use global location from context
+  const { latitude: targetLat, longitude: targetLon } = useLocation();
 
   const { visibility, loading: visLoading } = useVisibility(targetLat, targetLon);
   const { kp, loading: swLoading } = useSpaceWeather();
@@ -128,15 +129,9 @@ export default function PhotographyPage() {
             
             <div className="flex items-center gap-2 bg-surface/80 backdrop-blur-xl border border-slate-700/50 px-3 py-2 rounded-lg">
               <MapPin size={14} className="text-cyan-400" />
-              <input 
-                className="bg-transparent border-none text-white font-mono text-xs focus:outline-none w-16" 
-                value={targetLat} onChange={(e) => setTargetLat(Number(e.target.value))}
-              />
-              <span className="text-slate-600">,</span>
-              <input 
-                className="bg-transparent border-none text-white font-mono text-xs focus:outline-none w-16" 
-                value={targetLon} onChange={(e) => setTargetLon(Number(e.target.value))}
-              />
+              <span className="text-white font-mono text-xs">
+                {targetLat.toFixed(4)}, {targetLon.toFixed(4)}
+              </span>
             </div>
           </header>
 
