@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 import math
 import asyncio
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, timedelta
 from typing import Optional
 
 import ephem
@@ -34,6 +34,14 @@ from app.services.weather import fetch_local_weather
 W_AURORA   = 0.45
 W_DARKNESS = 0.30
 W_CLOUD    = 0.25
+
+# Fetch low, mid, and high cloud layers + ground visibility
+OPEN_METEO_URL = (
+    "https://api.open-meteo.com/v1/forecast"
+    "?latitude={lat}&longitude={lon}"
+    "&hourly=cloudcover,cloudcover_low,cloudcover_mid,cloudcover_high,visibility"
+    "&forecast_days=1&timezone=UTC"
+)
 
 
 # ── Bortle class lookup (approximate by lat/lon distance to dark-sky zones) ──
@@ -214,6 +222,48 @@ def _lon_dist(a: float, b: float) -> float:
     d = abs(a - b)
     return min(d, 360 - d)
 
+
+async def _fetch_cloud_cover(lat: float, lon: float) -> float:
+    """
+    Fetch multi-layer cloud cover from Open-Meteo (No API Key required).
+    Weights low-altitude clouds (the view blockers) more heavily.
+    """
+    url = OPEN_METEO_URL.format(lat=round(lat, 4), lon=round(lon, 4))
+    try:
+        async with httpx.AsyncClient(timeout=8.0) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+
+        hourly = data.get("hourly", {})
+        # Find index for the current hour
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        times = hourly.get("time", [])
+        best_idx = 0
+        best_diff = float('inf')
+        for i, t in enumerate(times):
+            dt = datetime.fromisoformat(t).replace(tzinfo=timezone.utc)
+            diff = abs((dt - now).total_seconds())
+            if diff < best_diff:
+                best_diff = diff
+                best_idx = i
+
+        # Extract layers
+        low = hourly.get("cloudcover_low", [0])[best_idx]
+        mid = hourly.get("cloudcover_mid", [0])[best_idx]
+        high = hourly.get("cloudcover_high", [0])[best_idx]
+
+        # HEURISTIC: Low clouds block the aurora completely. 
+        # High clouds (cirrus) are often wispy and aurora can be shot through them.
+        weighted_cloud = (low * 0.70) + (mid * 0.20) + (high * 0.10)
+        
+        return float(weighted_cloud)
+
+    except Exception as exc:
+        from app.core.logging import logger
+        logger.warning(f"WEATHER_FALLBACK_TRIGGERED: {str(exc)}")
+        return 50.0 # Only returns 50 if the internet actually cuts out
 
 async def compute_visibility_score(lat: float, lon: float) -> dict:
     now = datetime.now(timezone.utc)

@@ -33,7 +33,6 @@ function OvationLayer({ cells }) {
         L.DomUtil.remove(this._canvas)
         map.off("moveend zoomend resize", this._render, this)
       },
-
       _render() {
         const map = this._map
         const cv = this._canvas
