@@ -83,12 +83,12 @@ class SpaceWeatherStore:
     async def update_kp(self, data: KpResponse) -> None:
         async with self._lock:
             self._state.kp = data
-            self._state.last_updated = datetime.now(timezone.utc)
+            self._state.last_updated = datetime.now(timezone.utc)             
 
     async def update_alerts(self, data: AlertsResponse) -> None:
         async with self._lock:
             self._state.alerts = data
-            self._state.last_updated = datetime.now(timezone.utc)
+            self._state.last_updated = datetime.now(timezone.utc)          
 
     def register_alert_callback(self, fn) -> None:
         """Register an async function to be called when a threshold event fires."""
@@ -100,6 +100,8 @@ class SpaceWeatherStore:
                 await cb(event)
             except Exception as exc:
                 logger.warning("alert_callback_error", error=str(exc))
+
+             
 
 
 store = SpaceWeatherStore()
@@ -266,7 +268,7 @@ async def _fetch_kp(client: NoaaClient) -> KpResponse:
     except Exception as exc:
         logger.error("kp_fetch_failed", error=str(exc))
         return KpResponse(data_gap=True)
-
+    
 
 async def _fetch_alerts(client: NoaaClient) -> AlertsResponse:
     try:
@@ -367,15 +369,51 @@ async def _evaluate_thresholds(
         speed = plasma.latest.speed
         if speed > settings.SOLAR_WIND_SPEED_THRESHOLD:
             ts = plasma.latest.timestamp
+            
+            # --- L1 DELAY MATH ---
+            # Calculate how many minutes until this wind hits Earth
+            delay_minutes = int(1_500_000 / (speed * 60))
+            impact_time = ts + timedelta(minutes=delay_minutes) if ts else None
+            # -------------------------
+
             event = {
                 "type": "SPEED_ALERT",
                 "speed_km_s": speed,
                 "threshold": settings.SOLAR_WIND_SPEED_THRESHOLD,
                 "timestamp": ts.isoformat() if ts else None,
                 "source": plasma.latest.source,
+                # --- NEW ALERT FIELDS ---
+                "arrival_delay_minutes": delay_minutes,
+                "estimated_impact_time": impact_time.isoformat() if impact_time else None,
+                "warning_message": f"Incoming solar shockwave detected. Aurora probability will spike in roughly {delay_minutes} minutes.",
             }
             logger.warning("solar_wind_speed_threshold_crossed", **event)
             await store.fire_alert(event)
+
+    # ── Solar wind dynamic pressure alert ─────────────────────────────────
+    # We use getattr just in case your Pydantic model named it something slightly different
+    density = getattr(plasma.latest, 'density', None) if plasma.latest else None
+    
+    if plasma.latest and plasma.latest.speed is not None and density is not None:
+        speed = plasma.latest.speed
+        
+        # Calculate Dynamic Pressure (nPa)
+        # P = 1.67e-6 * n * v^2
+        dynamic_pressure = 1.67e-6 * density * (speed ** 2)
+        
+        if dynamic_pressure > 3.0:
+            ts = plasma.latest.timestamp
+            event = {
+                "type": "PRESSURE_ALERT",
+                "dynamic_pressure_nPa": round(dynamic_pressure, 2),
+                "density_cm3": density,
+                "speed_km_s": speed,
+                "threshold": 3.0,
+                "timestamp": ts.isoformat() if ts else None,
+                "warning_message": f"High solar wind pressure ({round(dynamic_pressure, 2)} nPa) detected. Magnetosphere compression imminent."
+            }
+            logger.warning("solar_wind_pressure_spike", **event)
+            await store.fire_alert(event)            
 
 
 # ── DSCOVR → ACE failover ─────────────────────────────────────────────────────

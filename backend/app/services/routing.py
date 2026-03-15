@@ -18,6 +18,8 @@ from __future__ import annotations
 import asyncio
 import math
 from typing import Optional
+import json
+import os
 
 import httpx
 
@@ -29,8 +31,54 @@ from app.services.visibility import (
 )
 
 
+
+
 # Criteria thresholds — dynamically adjusted based on Kp
 from app.services.noaa_poller import store as _store
+
+from datetime import datetime, timezone
+
+# ── Premium Dark Sky Locations ────────────────────────────────────────────────
+# A curated list of International Dark Sky Parks and famous aurora viewing spots.
+# (Loaded from GeoJSON/JSON) ─────────────────────
+_PREMIUM_DARK_SITES = []
+
+def _load_dark_sky_parks():
+    global _PREMIUM_DARK_SITES
+    # Build the absolute path to app/data/dark_sky_parks.json
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    json_path = os.path.join(base_dir, "data", "dark_sky_parks.json")
+    
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            _PREMIUM_DARK_SITES = json.load(f)
+            from app.core.logging import logger
+            logger.info("dark_sky_database_loaded", count=len(_PREMIUM_DARK_SITES))
+    except Exception as e:
+        from app.core.logging import logger
+        logger.error("dark_sky_database_load_failed", error=str(e))
+        _PREMIUM_DARK_SITES = []
+
+# Load it immediately when the module is imported
+_load_dark_sky_parks()
+# ──────────────────────────────────────────────────────────────────────────────
+
+def _approx_magnetic_latitude(lat: float, lon: float) -> float:
+    """
+    Approximates Geomagnetic Latitude using the Centered Dipole model.
+    """
+    import math
+    # 2025 Approx Geomagnetic North Pole coordinates
+    pole_lat = math.radians(80.65)
+    pole_lon = math.radians(-72.68)
+    
+    lat_r = math.radians(lat)
+    lon_r = math.radians(lon)
+    
+    sin_mag_lat = (math.sin(lat_r) * math.sin(pole_lat) + 
+                   math.cos(lat_r) * math.cos(pole_lat) * math.cos(lon_r - pole_lon))
+    
+    return math.degrees(math.asin(sin_mag_lat))
 
 def _get_thresholds():
     kp = None
@@ -71,10 +119,21 @@ def _destination(lat: float, lon: float, bearing_deg: float, distance_km: float)
 def _generate_candidates(lat: float, lon: float) -> list[tuple[float, float, float]]:
     """
     Generate candidate locations in concentric rings.
-    Also adds northward-biased candidates since aurora oval is poleward.
+    Also injects certified Dark Sky locations from the IDA database if nearby.
     Returns list of (lat, lon, distance_km).
     """
     candidates = []
+    
+    # --- Check IDA Dark Sky Database First ---
+    from app.services.visibility import _haversine_km
+    for site in _PREMIUM_DARK_SITES:
+        plat = site["lat"]
+        plon = site["lon"]
+        dist = _haversine_km(lat, lon, plat, plon)
+        if dist < 300:  # If a premium dark sky park is within a 300km drive
+            candidates.append((plat, plon, dist))
+    # -----------------------------------------
+
     # Standard 8 directions
     bearings  = [0, 45, 90, 135, 180, 225, 270, 315]
     distances = [20, 40, 70, 110, 160]
@@ -101,14 +160,22 @@ def _aurora_score_direct(lat: float, lon: float) -> float:
     score = _aurora_score_for_location(lat, lon)
 
     # If OVATION returns near-zero, estimate from Kp + latitude
+    # If OVATION returns near-zero, estimate from Kp + latitude
     if score < 5:
         kp = None
         if store.state.kp and store.state.kp.latest:
             kp = store.state.kp.latest.kp
         if kp:
+            # --- NEW MAGNETIC LATITUDE MATH (PURE PYTHON) ---
+            mag_lat = _approx_magnetic_latitude(lat, lon)
+                
             # Auroral oval visibility latitude: roughly 67 - (kp * 2) degrees
             oval_lat = 67 - (kp * 2)
-            dist_from_oval = abs(lat - oval_lat)
+            
+            # Compare distance using absolute MAGNETIC latitude
+            dist_from_oval = abs(abs(mag_lat) - oval_lat)
+            # ------------------------------------------------
+            
             if dist_from_oval < 3:
                 score = 80.0
             elif dist_from_oval < 6:
