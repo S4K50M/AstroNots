@@ -11,10 +11,13 @@ export function useWebSocket(onMessageCallback?: (msg: any) => void) {
 
   useEffect(() => {
     const connectWs = () => {
-      const ws = new WebSocket(`${WS_URL}/${clientId.current}`);
+      const fullUrl = `${WS_URL}?client_id=${clientId.current}`;
+      console.log("Attempting WebSocket connection to:", fullUrl);
+      const ws = new WebSocket(fullUrl);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log("WebSocket connected successfully to:", fullUrl);
         setConnected(true);
         // Subscribe to all alerts automatically
         ws.send(JSON.stringify({ action: "subscribe", location_id: "ALL" }));
@@ -36,7 +39,13 @@ export function useWebSocket(onMessageCallback?: (msg: any) => void) {
       };
 
       ws.onerror = (err) => {
-        console.error("WebSocket Error:", err);
+        console.error("WebSocket Error:", {
+          readyState: ws.readyState,
+          url: ws.url,
+          error: err,
+          timestamp: new Date().toISOString()
+        });
+        setConnected(false);
         ws.close();
       };
     };
