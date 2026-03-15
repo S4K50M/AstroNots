@@ -6,7 +6,7 @@ import { OrbitControls, Sphere } from "@react-three/drei";
 import * as THREE from "three";
 
 function WireframeGlobe() {
-  const globeRef = useRef<THREE.Mesh>(null);
+  const globeRef = useRef<THREE.Group>(null);
 
   // Rotate the globe slowly on every frame
   useFrame(() => {
@@ -25,7 +25,7 @@ function WireframeGlobe() {
       
       {/* Outer cyan wireframe */}
       <Sphere args={[2.02, 32, 32]}>
-        <meshBasicMaterial color="#22d3ee" wireframe={true} transparent opacity={0.3} />
+        <meshBasicMaterial color="#22d3ee" wireframe={true} transparent opacity={0.3} depthWrite={false}/>
       </Sphere>
 
       {/* Aurora Simulation Glow (Top Pole) */}
