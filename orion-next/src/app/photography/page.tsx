@@ -245,7 +245,7 @@ export default function PhotographyPage() {
                         <Tooltip 
                           cursor={{fill: '#1e293b', opacity: 0.4}}
                           contentStyle={{backgroundColor: '#09090b', borderColor: '#334155', color: '#fff', fontSize: '12px', fontFamily: 'monospace'}} 
-                          formatter={(value: number) => [`Kp ${value}`, "Predicted Intensity"]}
+                          formatter={(value: any) => [`Kp ${value}`, "Predicted Intensity"]}
                         />
                         <ReferenceLine y={5} stroke="#f59e0b" strokeDasharray="4 4" />
                         <Bar dataKey="kp" radius={[2, 2, 0, 0]}>

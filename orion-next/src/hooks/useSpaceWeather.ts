@@ -6,14 +6,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export function useSpaceWeather() {
   const [data, setData] = useState({
-    status: null,
-    mag: null,
-    plasma: null,
-    ovation: null,
-    kp: null,
-    alerts: null,
+    status: null as any,
+    mag: null as any,
+    plasma: null as any,
+    ovation: null as any,
+    kp: null as any,
+    alerts: null as any,
     loading: true,
-    error: null,
+    error: null as string | null,
   });
 
   const fetchAll = useCallback(async () => {

@@ -38,6 +38,7 @@ export default function MapPage() {
           ovation={ovation} 
           userLat={targetLat} 
           userLon={targetLon} 
+          score={visibility?.composite_score ?? 0}
         />
       </div>
 

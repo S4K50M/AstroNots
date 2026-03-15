@@ -6,7 +6,7 @@ import * as THREE from "three";
 
 // --- 1. Glowing Aurora Ring ---
 function AuroraRing() {
-  const ringRef = useRef(null);
+  const ringRef = useRef<any>(null);
   useFrame(({ clock }) => {
     if (!ringRef.current) return;
     ringRef.current.rotation.z = clock.getElapsedTime() * 0.3; // Spin
@@ -42,7 +42,7 @@ function Magnetosphere() {
 // --- 3. Animated Solar Wind Particles ---
 function SolarWind() {
   const count = 1000;
-  const pointsRef = useRef(null);
+  const pointsRef = useRef<any>(null);
 
   // Generate random starting positions for 1000 particles
   const positions = useMemo(() => {
@@ -67,6 +67,7 @@ function SolarWind() {
   return (
     <points ref={pointsRef}>
       <bufferGeometry>
+        {/* @ts-ignore - R3F buffer attribute typing */}
         <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
       </bufferGeometry>
       <pointsMaterial color="#22d3ee" size={0.04} transparent opacity={0.4} depthWrite={false} blending={THREE.AdditiveBlending} />
@@ -76,7 +77,7 @@ function SolarWind() {
 
 // --- 4. The Main Globe ---
 function WireframeGlobe() {
-  const globeRef = useRef(null);
+  const globeRef = useRef<any>(null);
 
   // Slow rotation
   useFrame(() => {
