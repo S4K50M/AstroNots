@@ -106,7 +106,6 @@ class SpaceWeatherStore:
 
 store = SpaceWeatherStore()
 
-
 # ── HTTP Client ───────────────────────────────────────────────────────────────
 
 class NoaaClient:
