@@ -90,7 +90,7 @@ export default function MapPage() {
 
 
         {/* BOTTOM HUD ROW */}
-        <div className="grid grid-cols-5 items-end gap-2 sm:gap-3 md:gap-4 pb-16 md:pb-0 w-full">
+        <div className="grid grid-cols-5 items-stretch gap-2 sm:gap-3 md:gap-4 pb-16 md:pb-0 w-full">
           
           {/* Bottom Left: REVISED Map Legend */}
           <motion.div 
@@ -128,7 +128,7 @@ export default function MapPage() {
           {/* Bottom Right: Target Lock Coordinates */}
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-cyan-950/40 backdrop-blur-xl border border-cyan-900/50 p-1.5 sm:p-2 md:p-2.5 rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.1)] pointer-events-auto flex items-center gap-2 w-full col-span-1 justify-self-end min-w-0"
+            className="bg-cyan-950/40 backdrop-blur-xl border border-cyan-900/50 p-1.5 sm:p-2 md:p-2.5 rounded-lg shadow-[0_0_20px_rgba(34,211,238,0.1)] pointer-events-auto flex items-center justify-center gap-2 w-full col-span-1 min-w-0"
           >
             <div className="flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-cyan-900/50 border border-cyan-500/50 shrink-0">
               <Crosshair size={12} className="text-cyan-400" />
