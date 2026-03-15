@@ -8,7 +8,7 @@ const sans = Inter({ subsets: ["latin"], variable: '--font-geist-sans' });
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: '--font-geist-mono' });
 
 export const metadata: Metadata = {
-  title: "Orion | Space Weather",
+  title: "Aurora Intel",
   description: "Tactical Aurora Forecasting",
 };
 
@@ -25,7 +25,7 @@ export default function RootLayout({
             
             {/* Top Header (Mobile Only) */}
             <header className="md:hidden flex items-center justify-between p-4 border-b border-slate-800/60 bg-surface/80 backdrop-blur-md z-50">
-              <h1 className="text-xl font-black tracking-[0.3em] text-cyan-400 uppercase">Orion</h1>
+              <h1 className="text-xl font-black tracking-[0.3em] text-cyan-400 uppercase">Aurora Intel</h1>
               <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse-glow"></div>
             </header>
 
