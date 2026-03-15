@@ -5,7 +5,7 @@ GPS Routing — Stretch Goal.
 
 Finds the nearest point satisfying ALL three criteria:
   1. Aurora probability > 50%  (from OVATION)
-  2. Cloud cover < 30%         (from Open-Meteo)
+  2. Cloud cover < 30%         (from Meteoblue)
   3. Bortle class < 4          (light pollution)
 
 Strategy:
@@ -19,14 +19,15 @@ import asyncio
 import math
 from typing import Optional
 
-import httpx
-
 from app.core.logging import logger
 from app.services.visibility import (
-    _aurora_score_for_location,
+    _bortle_to_score,
     _estimate_bortle,
-    _fetch_cloud_cover,
+    _aurora_score_for_location
 )
+
+# --- NEW: Import Meteoblue fetcher ---
+from app.services.weather import fetch_local_weather
 
 
 # Criteria thresholds — dynamically adjusted based on Kp
@@ -136,7 +137,10 @@ async def _score_candidate(lat: float, lon: float) -> dict:
             "qualifies": False,
         }
 
-    cloud = await _fetch_cloud_cover(lat, lon)
+    # --- NEW: Use Meteoblue dictionary extraction ---
+    weather_data = await fetch_local_weather(lat, lon)
+    cloud = weather_data.get("cloud_cover_percent", 999.0)
+    
     qualifies = (
         aurora_prob >= MIN_AURORA_PROB and
         cloud <= MAX_CLOUD_COVER and
